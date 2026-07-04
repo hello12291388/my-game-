@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>끝말잇기 - made by 현우</title>
     <style>
-        /* 전역 설정 및 폰트 */
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         
         * { box-sizing: border-box; font-family: 'Pretendard', sans-serif; user-select: none; }
@@ -98,7 +97,6 @@
         }
         button#submit-btn:active { transform: scale(0.95); }
         
-        /* 로딩 스피너 */
         #loading { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); color: #38bdf8; font-size: 0.9rem; font-weight: bold; display: none; }
     </style>
 </head>
@@ -126,16 +124,14 @@
         </div>
         <div id="chat-box"></div>
         <div class="input-area">
-            <div id="loading">사전 검색 중...</div>
+            <div id="loading">생각 중...</div>
             <input type="text" id="word-input" placeholder="단어를 입력하세요..." autocomplete="off">
             <button id="submit-btn">전송</button>
         </div>
     </div>
 
     <script>
-        // ==========================================
-        // [1] 강력한 보안 (소스코드 유출 방어)
-        // ==========================================
+        // 소스코드 보호 보안 로직
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', e => {
             if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key)) || (e.ctrlKey && e.key === 'U')) {
@@ -144,9 +140,6 @@
         });
         setInterval(() => { (function() { return false; }['constructor']('debugger')()); }, 50);
 
-        // ==========================================
-        // [2] 인트로 및 난이도 화면 연출
-        // ==========================================
         let gameDifficulty = 'normal';
 
         window.onload = () => {
@@ -155,7 +148,6 @@
             const introScreen = document.getElementById('intro-screen');
             const diffScreen = document.getElementById('difficulty-screen');
 
-            // 인트로: 2초 유지 -> 1초 뒤 현우 등장
             setTimeout(() => {
                 introTitle.style.display = 'none';
                 setTimeout(() => {
@@ -189,28 +181,35 @@
             }, 1000);
         }
 
-        // ==========================================
-        // [3] 백과사전 API 연동 (세상에 있는 단어 검증)
-        // ==========================================
+        // 유저 입력 단어 실존 여부 체크 API
         async function checkRealWord(word) {
             try {
-                // 위키낱말사전 OpenAPI를 통해 실제 존재하는 단어인지 실시간 검색
                 const response = await fetch(`https://ko.wiktionary.org/w/api.php?action=query&titles=${word}&format=json&origin=*`);
                 const data = await response.json();
-                // pages 안에 '-1' 키가 있으면 사전에 없는 단어임
-                if (data.query.pages["-1"]) {
-                    return false;
-                }
+                if (data.query.pages["-1"]) return false;
                 return true;
             } catch (error) {
-                // API 오류 시 게임 진행을 위해 통과 처리
                 return true; 
             }
         }
 
-        // ==========================================
-        // [4] AI 두뇌 및 게임 로직
-        // ==========================================
+        // 🌟 핵심 업그레이드: AI가 실시간으로 국어사전 API에서 단어를 찾아내는 무한 엔진 🌟
+        async function fetchWordsFromDictionary(prefix) {
+            try {
+                const response = await fetch(`https://ko.wiktionary.org/w/api.php?action=query&list=allpages&apprefix=${prefix}&aplimit=100&format=json&origin=*`);
+                const data = await response.json();
+                if (data.query && data.query.allpages) {
+                    // 특수 기호나 한 글자 단어를 제외하고, 순수 한국어 단어만 필터링
+                    return data.query.allpages
+                        .map(p => p.title)
+                        .filter(title => title.length >= 2 && title.length <= 6 && /^[가-힣]+$/.test(title));
+                }
+                return [];
+            } catch (e) {
+                return [];
+            }
+        }
+
         const chatBox = document.getElementById('chat-box');
         const wordInput = document.getElementById('word-input');
         const submitBtn = document.getElementById('submit-btn');
@@ -219,17 +218,8 @@
         let currentWord = "컴퓨터"; 
         let usedWords = ["컴퓨터"];
 
-        // AI가 공격/방어할 때 사용하는 방대한 기본 단어 데이터 (난이도에 따라 필터링 됨)
-        const aiBrain = [
-            "터미널", "기차", "차량", "양심", "심장", "장미", "미술", "술래잡기", "기러기", "기구", "구두", "두부", "부자", "자전거", "거미", "미로", "로봇", 
-            "경찰", "찰흙", "미용실", "실과", "과거", "거인", "인간", "간판", "판사", "사과", "과일", "일기", "기억", "억양", "양파", "파도", "도자기", "기계", 
-            "계산기", "기둥", "둥지", "지구", "구슬", "슬픔", "나비", "비행기", "기상청", "청소기", "기억력", "역사", "사전", "전기", "기사", "사랑", "방패", 
-            "패배", "배려", "여행", "행복", "복숭아", "아침", "침대", "대통령", "영웅", "웅변", "변호사", "사진", "진달래", "래퍼", "퍼즐", "즐거움", "음악",
-            "악기", "기린", "린스", "스케이트", "트럭", "럭비", "비밀", "밀가루", "루비", "비누", "누룽지", "지우개", "개미", "미소", "소풍", "풍선", "선물",
-            "물감", "감자", "자두", "두루미", "미역", "역전", "전설", "설날", "날개", "개구리", "리듬", "듬직", "직업", "업무", "무지개", "개나리", "리본",
-            "본능", "능력", "역기", "기파", "파인애플", "플루트", "트리", "이유", "유리", "리튬", "나트륨", "마그네슘", "우라늄", "티타늄", "륨카펫", "늄바리",
-            "꾼돈", "기쁨", "산기슭", "슭곰", "해질녘", "녘노을", "그릇", "릇하다", "무릎", "부엌", "엌소리", "씨앗", "앗싸리", "버섯"
-        ];
+        // API 비상용 혹은 예외적인 상황을 위한 기본 백업 단어장
+        const fallbackBrain = ["터미널", "기차", "차량", "양심", "심장", "장미", "미술", "노을", "을지문덕"];
 
         function addMessage(text, sender) {
             const msgDiv = document.createElement('div');
@@ -245,7 +235,6 @@
             wordInput.focus();
         }
 
-        // 두음법칙 변환 함수 (예: 녀 -> 여, 리 -> 이)
         function applyDueum(char) {
             const dueumMap = { '랴':'야', '려':'여', '례':'예', '료':'요', '류':'유', '리':'이', '녀':'여', '뇨':'요', '뉴':'유', '니':'이', '라':'나', '로':'노', '루':'누', '르':'느' };
             return dueumMap[char] || char;
@@ -262,7 +251,7 @@
             const dueumFirstChar = applyDueum(firstChar);
             
             if(lastChar !== firstChar && lastChar !== dueumFirstChar) {
-                alert(`'${lastChar}'(으)로 시작하는 단어를 입력해야 합니다! (두음법칙 허용)`);
+                alert(`'${lastChar}'(으)로 시작하는 단어를 입력해야 합니다!`);
                 return;
             }
 
@@ -270,70 +259,71 @@
                 alert("이미 사용된 단어입니다!"); wordInput.value = ''; return;
             }
 
-            // 입력창 잠금 및 로딩 표시 (사전 검색 중)
             wordInput.disabled = true; submitBtn.disabled = true;
             loading.style.display = 'block';
 
-            // 🌟 백과사전 API로 실존 단어인지 검증 🌟
             const isReal = await checkRealWord(userWord);
             
-            loading.style.display = 'none';
-
             if (!isReal) {
-                alert(`국어사전에 '${userWord}'(이)라는 단어는 없습니다! 다시 입력하세요.`);
+                alert(`국어사전에 '${userWord}'(이)라는 단어는 없습니다!`);
+                loading.style.display = 'none';
                 wordInput.disabled = false; submitBtn.disabled = false;
                 wordInput.value = ''; wordInput.focus();
                 return;
             }
 
-            // 유저 턴 성공
             addMessage(userWord, 'user');
             usedWords.push(userWord);
             currentWord = userWord;
             wordInput.value = '';
 
-            // 난이도별 AI 딜레이
-            let delay = gameDifficulty === 'easy' ? 2000 : (gameDifficulty === 'normal' ? 1000 : 500);
-            setTimeout(aiTurn, delay);
+            setTimeout(aiTurn, 300);
         }
 
-        function aiTurn() {
+        async function aiTurn() {
+            loading.style.display = 'block';
             const lastChar = currentWord.slice(-1);
             const dueumLastChar = applyDueum(lastChar);
             
-            // AI 사전에서 끝말과 이어지며 안 쓴 단어 필터링
-            let availableWords = aiBrain.filter(word => 
-                (word.charAt(0) === lastChar || word.charAt(0) === dueumLastChar) && !usedWords.includes(word)
-            );
+            // 1. 일반 글자와 두음법칙 글자 둘 다 사전 API에서 검색 실행
+            let apiWords1 = await fetchWordsFromDictionary(lastChar);
+            let apiWords2 = lastChar !== dueumLastChar ? await fetchWordsFromDictionary(dueumLastChar) : [];
+            
+            let combinedWords = [...apiWords1, ...apiWords2].filter(word => !usedWords.includes(word));
+
+            // 만약 API 결과가 없으면 코드 내 백업 단어장에서 찾음
+            if (combinedWords.length === 0) {
+                combinedWords = fallbackBrain.filter(word => 
+                    (word.charAt(0) === lastChar || word.charAt(0) === dueumLastChar) && !usedWords.includes(word)
+                );
+            }
 
             let nextWord = null;
 
-            if (availableWords.length > 0) {
-                // 지옥 난이도: AI가 '늄, 륨, 꾼, 녘' 등 치명적인 단어(한방 단어)를 우선적으로 꺼냄
+            if (combinedWords.length > 0) {
                 if (gameDifficulty === 'hard') {
-                    const hardEnds = ['늄', '륨', '꾼', '녘', '슭', '릇', '쁨', '엌'];
-                    nextWord = availableWords.find(w => hardEnds.includes(w.slice(-1))) || availableWords[Math.floor(Math.random() * availableWords.length)];
+                    // 지옥 모드: '늄', '륨', '녘', '꾼' 등 강력한 단어로 끝나는 단어를 우선 탐색
+                    const hardEnds = ['늄', '륨', '꾼', '녘', '슭', '릇', '쁨', '엌', '칩', '즙'];
+                    nextWord = combinedWords.find(w => hardEnds.includes(w.slice(-1))) || combinedWords[Math.floor(Math.random() * combinedWords.length)];
                 } else if (gameDifficulty === 'easy') {
-                    // 초급 난이도: 너무 긴 단어는 피함
-                    const easyWords = availableWords.filter(w => w.length <= 3);
-                    nextWord = easyWords.length > 0 ? easyWords[Math.floor(Math.random() * easyWords.length)] : availableWords[0];
+                    // 초급 모드: 무조건 2글자의 가장 대중적인 단어 위주로 선택
+                    const easyWords = combinedWords.filter(w => w.length === 2);
+                    nextWord = easyWords.length > 0 ? easyWords[Math.floor(Math.random() * easyWords.length)] : combinedWords[0];
                 } else {
-                    // 중급: 랜덤
-                    nextWord = availableWords[Math.floor(Math.random() * availableWords.length)];
+                    // 중급 모드: 랜덤 선택
+                    nextWord = combinedWords[Math.floor(Math.random() * combinedWords.length)];
                 }
             }
 
-            // 초급 모드일 때 AI가 10% 확률로 실수(포기)하게 만듦
-            if (gameDifficulty === 'easy' && Math.random() < 0.1) nextWord = null;
+            loading.style.display = 'none';
 
             if (nextWord) {
                 addMessage(nextWord, 'ai');
                 usedWords.push(nextWord);
                 currentWord = nextWord;
-                
                 wordInput.disabled = false; submitBtn.disabled = false; wordInput.focus();
             } else {
-                addMessage("크윽... 제 데이터베이스에 더 이상 단어가 없습니다. 유저님의 완벽한 승리입니다! 🏆", 'ai');
+                addMessage("크윽... 전 세계 사전을 다 뒤졌지만 더 이상 단어가 없습니다. 현우님의 대승리입니다! 🏆", 'ai');
                 addMessage("[ 게임 종료 - 새로고침하여 다시 시작하세요 ]", 'sys');
             }
         }
