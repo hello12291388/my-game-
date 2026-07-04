@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SECURE GAME</title>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .box { border: 1px solid #30363d; padding: 20px; border-radius: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>끝말잇기 게임</h1>
+        <p>배포 성공! 게임이 시작되었습니다.</p>
+        <button onclick="location.reload()">새로고침</button>
+    </div>
+    <script>
+        // 우클릭 방지
+        document.addEventListener('contextmenu', e => e.preventDefault());
+    </script>
+</body>
+</html>
